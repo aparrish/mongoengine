@@ -340,6 +340,7 @@ class QuerySet(object):
         self._timeout = True
         self._class_check = True
         self._slave_okay = False
+        self._read_preference = None
         self._scalar = []
 
         # If inheritance is allowed, only return instances and instances of
@@ -361,7 +362,8 @@ class QuerySet(object):
 
         copy_props = ('_initial_query', '_query_obj', '_where_clause',
                     '_loaded_fields', '_ordering', '_snapshot',
-                    '_timeout', '_limit', '_skip', '_slave_okay', '_hint')
+                    '_timeout', '_limit', '_skip', '_slave_okay', '_hint',
+                    '_read_preference')
 
         for prop in copy_props:
             val = getattr(self, prop)
@@ -449,7 +451,7 @@ class QuerySet(object):
             cls.__already_indexed.discard(document)
         cls.__already_indexed.clear()
 
-    def __call__(self, q_obj=None, class_check=True, slave_okay=False, **query):
+    def __call__(self, q_obj=None, class_check=True, slave_okay=False, read_preference=None, **query):
         """Filter the selected documents by calling the
         :class:`~mongoengine.queryset.QuerySet` with a query.
 
@@ -470,6 +472,7 @@ class QuerySet(object):
         self._mongo_query = None
         self._cursor_obj = None
         self._class_check = class_check
+        self._read_preference = read_preference
         return self
 
     def filter(self, *q_objs, **query):
@@ -550,8 +553,10 @@ class QuerySet(object):
         cursor_args = {
             'snapshot': self._snapshot,
             'timeout': self._timeout,
-            'slave_okay': self._slave_okay
+            'slave_okay': self._slave_okay,
         }
+        if self._read_preference is not None:
+            cursor_args['read_preference'] = self._read_preference
         if self._loaded_fields:
             cursor_args['fields'] = self._loaded_fields.as_dict()
         return cursor_args
@@ -1232,6 +1237,10 @@ class QuerySet(object):
         ..versionchanged:: 0.5 - made chainable
         """
         self._snapshot = enabled
+        return self
+
+    def read_preference(self, pref):
+        self._read_preference = pref
         return self
 
     def timeout(self, enabled):
